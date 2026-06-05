@@ -1,0 +1,8 @@
+
+Quando algum usuário perguntar sobre frete para cargas com menos de 500kg não existe uma documentação.A IA pode responder inventando alguma regra. 
+
+Quando for necessário calcular o frete utilizando os fatores de pesos, as informações estão com diferenças para as mesmas faixas. A IA pode responder o calculo errado. 
+
+Quando algum usuário perguntar sobre carga perigosa, não existe uma documentação. A IA pode responder inventando alguma regra. 
+
+Quando algum usuário perguntar sobre prazo adicional para devoluções, as informações estão com diferenças para a quantidade de dias. A IA pode responder a informação errada. 

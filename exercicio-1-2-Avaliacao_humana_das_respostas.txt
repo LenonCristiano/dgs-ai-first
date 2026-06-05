@@ -1,0 +1,9 @@
+Resposta 1: Resposta parcialmente correta, porque não especifica que o prazo é de 7 dias uteis a partir da data de recebimento confirmada. E cita como exceções somente cargas perigosas, mas não fala sobre cargas refrigeradas e cargas com lacre de segurança violado. 
+
+Resposta 2: Resposta incorreta, o multiplicador da resposta é 1.8 mas o correto segundo a tabela é 1.6, além disso na minha opinião a resposta deveria trazer o valor calculado, já que isso foi a pergunta. 
+
+Resposta 3: Resposta incorreta, não existe o tipo de cliente Platinum. 
+
+Resposta 4: Resposta incorreta, para devolver uma carga classificada como perigosa é necessário entrar em contato com o setor de  Gestão de Riscos para tratamento individual.
+
+Resposta 5: Resposta incorreta, o multiplicador de frete para a região sudeste é 1.0.

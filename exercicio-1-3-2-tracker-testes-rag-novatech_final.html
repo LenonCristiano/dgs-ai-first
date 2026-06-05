@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracker de Testes — Pipeline RAG NovaTech</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3348;
+    --accent: #4f8ef7;
+    --text: #e2e8f0;
+    --text-muted: #8892a4;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --orange: #f97316;
+    --teal: #14b8a6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 16px; font-weight: 700; color: var(--text); }
+  header span { font-size: 12px; color: var(--text-muted); }
+  .header-right { display: flex; gap: 10px; align-items: center; }
+  .btn { background: var(--accent); color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .btn:hover { opacity: 0.85; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+
+  .summary-bar { display: flex; gap: 10px; padding: 14px 24px; flex-wrap: wrap; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; min-width: 110px; }
+  .stat-card .num { font-size: 22px; font-weight: 700; }
+  .stat-card .label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .stat-afazer .num { color: var(--text-muted); }
+  .stat-andamento .num { color: var(--yellow); }
+  .stat-concluido .num { color: var(--green); }
+  .stat-bloqueado .num { color: var(--red); }
+  .stat-total .num { color: var(--accent); }
+
+  .tabs { display: flex; gap: 4px; padding: 12px 24px 0; border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto; }
+  .tab { padding: 7px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-muted); border: 1px solid transparent; border-bottom: none; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--bg); border-color: var(--border); color: var(--accent); }
+  .tab-badge { background: var(--surface2); border-radius: 10px; padding: 1px 7px; margin-left: 5px; font-size: 11px; }
+
+  .content { padding: 20px 24px; }
+
+  /* Category summary table */
+  .cat-summary { margin-bottom: 20px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .cat-summary table { width: 100%; border-collapse: collapse; }
+  .cat-summary th { background: var(--surface2); padding: 9px 12px; text-align: left; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+  .cat-summary td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .cat-summary tr:last-child td { border-bottom: none; }
+  .cat-summary tr:hover td { background: var(--surface2); }
+
+  /* Progress bar */
+  .progress-wrap { width: 100%; background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; background: var(--green); transition: width 0.3s; }
+
+  /* Tests table */
+  .tests-table-wrap { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  table.tests { width: 100%; border-collapse: collapse; }
+  table.tests th { background: var(--surface2); padding: 9px 10px; text-align: left; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.tests td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.tests tr:last-child td { border-bottom: none; }
+  table.tests tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .id-badge { font-family: monospace; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 5px; white-space: nowrap; }
+  .cat-ING { background: #1a3a2a; color: #4ade80; }
+  .cat-RET { background: #1a2a3a; color: #60a5fa; }
+  .cat-GER { background: #2a1a3a; color: #c084fc; }
+  .cat-CTX { background: #2a2a1a; color: #fbbf24; }
+  .cat-E2E { background: #2a1a1a; color: #f87171; }
+  .cat-REG { background: #1a2a2a; color: #2dd4bf; }
+
+  .desc-cell { max-width: 260px; line-height: 1.45; }
+  .desc-cell .title { font-weight: 600; color: var(--text); }
+  .desc-cell .sub { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+  select, input[type=text], input[type=date], textarea {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 5px; padding: 5px 8px; font-size: 12px; width: 100%; outline: none;
+    font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 40px; }
+
+  .status-badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .s-afazer { background: #2a2a2a; color: #8892a4; }
+  .s-andamento { background: #2a2200; color: #f59e0b; }
+  .s-concluido { background: #0a2a0a; color: #22c55e; }
+  .s-bloqueado { background: #2a0a0a; color: #ef4444; }
+
+  .resultado-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .r-pass { background: #0a2a0a; color: #22c55e; }
+  .r-fail { background: #2a0a0a; color: #ef4444; }
+  .r-parcial { background: #2a2200; color: #f59e0b; }
+  .r-na { background: var(--surface2); color: var(--text-muted); }
+
+  .tipo-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+  .t-auto { background: #1a2a3a; color: #60a5fa; }
+  .t-manual { background: #2a1a3a; color: #c084fc; }
+  .t-ambos { background: #1a2a2a; color: #2dd4bf; }
+
+  .resp-text { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .filter-bar select { width: auto; min-width: 140px; }
+  .filter-bar label { font-size: 12px; color: var(--text-muted); }
+  .search-input { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-size: 12px; width: 200px; outline: none; }
+  .search-input:focus { border-color: var(--accent); }
+
+  .section-divider { background: var(--surface2); }
+  .section-divider td { padding: 7px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+
+  .empty-msg { text-align: center; padding: 30px; color: var(--text-muted); }
+
+  /* Expand row */
+  .expand-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
+  .expand-btn:hover { background: var(--surface2); color: var(--text); }
+  .detail-row { display: none; }
+  .detail-row.open { display: table-row; }
+  .detail-content { padding: 12px 14px; background: var(--surface2); border-radius: 6px; margin: 4px 0; }
+  .detail-content .field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 4px; margin-top: 10px; }
+  .detail-content .field-label:first-child { margin-top: 0; }
+  .detail-content p { font-size: 12px; color: var(--text); line-height: 1.5; }
+
+  .last-saved { font-size: 11px; color: var(--text-muted); }
+
+  @media (max-width: 800px) {
+    .summary-bar { padding: 10px 12px; }
+    .content { padding: 12px; }
+    .tabs { padding: 8px 12px 0; }
+    header { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🧪 Tracker de Testes — Pipeline RAG NovaTech</h1>
+    <span>Assistente de IA para Atendimento ao Cliente</span>
+  </div>
+  <div class="header-right">
+    <span class="last-saved" id="lastSaved">Não salvo ainda</span>
+    <button class="btn btn-outline" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <button class="btn" onclick="saveData()">💾 Salvar</button>
+  </div>
+</header>
+
+<div class="summary-bar" id="summaryBar"></div>
+
+<div class="tabs" id="tabsBar"></div>
+
+<div class="content" id="mainContent"></div>
+
+<script>
+const CATEGORIES = {
+  ING: { label: 'Ingestão', color: 'cat-ING', resp: 'Dev', quando: 'A cada ingestão de novo documento' },
+  RET: { label: 'Retrieval', color: 'cat-RET', resp: 'Dev + QA', quando: 'A cada mudança de índice ou threshold' },
+  GER: { label: 'Geração', color: 'cat-GER', resp: 'QA', quando: 'A cada mudança de prompt ou modelo' },
+  CTX: { label: 'Contexto', color: 'cat-CTX', resp: 'QA', quando: 'A cada mudança de janela de contexto ou sessão' },
+  E2E: { label: 'Ponta a ponta', color: 'cat-E2E', resp: 'Dev + QA', quando: 'A cada deploy (smoke test obrigatório)' },
+  REG: { label: 'Regressão', color: 'cat-REG', resp: 'Dev + QA', quando: 'Conforme trigger definido por teste' },
+};
+
+const TESTS_BASE = [
+  // INGESTÃO
+  { id: 'ING-01', cat: 'ING', tipo: 'auto', resp: 'Dev',
+    titulo: 'Extração completa de texto — PDF/Word',
+    desc: 'Enviar POL-001 (Word) e SLA-2024 (PDF) ao pipeline de ingestão. Texto extraído deve conter todas as seções, incluindo tabelas e numeração.',
+    saida: 'Zero páginas em branco ou truncadas. Tabelas preservadas.',
+    obs_base: 'Verificar especialmente tabelas — conversão Word→texto frequentemente perde alinhamento de colunas.' },
+  { id: 'ING-02', cat: 'ING', tipo: 'auto', resp: 'Dev',
+    titulo: 'Chunking — tamanho e sobreposição dos chunks',
+    desc: 'POL-001 processado pelo pipeline de chunking. Nenhum chunk deve exceder o tamanho configurado (512 tokens) e chunks contíguos devem ter sobreposição de 50 tokens.',
+    saida: 'Chunks de seções diferentes não se mesclam. Sobreposição configurada preservada.',
+    obs_base: 'Validar com tiktoken. Chunk cruzando seção 3.1 e 3.2 da POL-001 é risco real.' },
+  { id: 'ING-03', cat: 'ING', tipo: 'auto', resp: 'Dev',
+    titulo: 'Metadata de versão e fonte preservados no índice',
+    desc: 'PROC-042-v1 e PROC-042-v2 ingeridos no mesmo índice. Cada chunk deve conter metadata: nome, versão, seção, data de emissão.',
+    saida: 'Chunks das duas versões distinguíveis pelo metadata.',
+    obs_base: 'Crítico: sem metadata de versão, o retriever não consegue priorizar v2 sobre v1.' },
+  { id: 'ING-04', cat: 'ING', tipo: 'auto', resp: 'Dev',
+    titulo: 'Rejeição de documento corrompido ou ilegível',
+    desc: 'Enviar arquivo PDF corrompido (binário inválido) ao pipeline.',
+    saida: 'Pipeline registra erro no log, não indexa o arquivo e não interrompe processamento dos demais. Alerta enviado ao administrador.',
+    obs_base: 'Teste de resiliência — a pasta de rede da NovaTech pode conter arquivos mal formatados.' },
+  { id: 'ING-05', cat: 'ING', tipo: 'manual', resp: 'Dev + QA',
+    titulo: 'Atualização incremental — novo documento substitui versão anterior',
+    desc: 'Ingerir PROC-042-v1, depois ingerir PROC-042-v2 com flag de substituição. Apenas chunks da v2 devem ficar ativos.',
+    saida: 'Busca por \'multiplicador Norte\' retorna chunk da v2 (1.8), não da v1 (1.6). Chunks da v1 marcados como obsoletos.',
+    obs_base: 'Simula o processo mensal de atualização da NovaTech. Empresa não tem processo unificado atualmente.' },
+  // RETRIEVAL
+  { id: 'RET-01', cat: 'RET', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Retrieval correto — prazo de devolução',
+    desc: '\'Qual o prazo de devolução de mercadorias?\'',
+    saida: 'Chunks POL-001-A (§3.1) e POL-001-B (§3.2) recuperados. Score de POL-001-A deve ser o mais alto.',
+    obs_base: 'Gabarito: Anexo B, mapa de cobertura — pergunta \'Qual o prazo de devolução?\'.' },
+  { id: 'RET-02', cat: 'RET', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Retrieval correto — SLA de tier inexistente (armadilha)',
+    desc: '\'Qual o SLA do cliente Platinum?\'',
+    saida: 'Chunk SLA-2024-A recuperado (contém negação do tier Platinum). Nenhum chunk inventado.',
+    obs_base: 'Teste de armadilha — retriever deve trazer o chunk que nega a existência do tier.' },
+  { id: 'RET-03', cat: 'RET', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Retrieval correto — frete para Manaus (versão correta)',
+    desc: '\'Quanto custa frete para 600kg para Manaus?\'',
+    saida: 'Chunks PROC-042v2-A e PROC-042v2-B como primários. v1 pode aparecer com score menor.',
+    obs_base: 'Risco de contaminação por chunk da v1 com multiplicador 1.6 (errado para novos contratos).' },
+  { id: 'RET-04', cat: 'RET', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Retrieval com linguagem informal — variações de pergunta',
+    desc: 'Variações: \'pode devolver depois de uma semana?\', \'prazo pra devolução\', \'quantos dias tenho pra devolver?\'',
+    saida: 'POL-001-A recuperado em todas as variações. Taxa de acerto ≥ 90%.',
+    obs_base: 'Testa robustez semântica do embedding. Threshold muito alto pode causar falsa ignorância (cenário C-R1).' },
+  { id: 'RET-05', cat: 'RET', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Ausência de retrieval — pergunta fora da base',
+    desc: '\'Qual o valor do frete para uma carga de 300kg?\' (frete padrão — não documentado)',
+    saida: 'Nenhum chunk com alta similaridade. Sistema sinaliza que pergunta não tem cobertura documental.',
+    obs_base: 'Gap real da base NovaTech. Pipeline deve distinguir \'não encontrei\' de \'encontrei algo próximo mas inadequado\'.' },
+  { id: 'RET-06', cat: 'RET', tipo: 'manual', resp: 'QA',
+    titulo: 'Retrieval multi-domínio — pergunta que cruza múltiplos documentos',
+    desc: '\'Qual o prazo de devolução e o SLA para um cliente Gold com carga perigosa?\'',
+    saida: 'Chunks: POL-001-B, SLA-2024-B e SLA-2024-C recuperados. Nenhum domínio omitido.',
+    obs_base: 'Gabarito: Anexo B, última linha do mapa de cobertura. Testa perguntas complexas sem privilegiar apenas um documento.' },
+  // GERAÇÃO
+  { id: 'GER-01', cat: 'GER', tipo: 'manual', resp: 'QA',
+    titulo: 'Geração correta — não inventar além do contexto',
+    desc: 'Chunks POL-001-A e POL-001-B + \'Posso devolver carga perigosa?\'',
+    saida: 'Resposta informa que cargas perigosas NÃO são elegíveis e orienta o ramal 4500. Sem exceções inventadas.',
+    obs_base: 'Mesmo com chunks corretos, LLM pode completar com conhecimento externo. Verificar se a resposta se limita aos chunks.' },
+  { id: 'GER-02', cat: 'GER', tipo: 'manual', resp: 'QA',
+    titulo: 'Geração com chunks conflitantes — declarar conflito',
+    desc: 'Chunks PROC-042-B (v1, Norte=1.6) e PROC-042v2-B (v2, Norte=1.8) + \'Qual o multiplicador para o Norte?\'',
+    saida: 'Resposta declara duas versões com valores diferentes, indica qual é mais recente e recomenda confirmação. Sem escolha arbitrária.',
+    obs_base: 'Cenário C-D1 do Ex. 1.1. Instrução de declarar conflito deve estar no system prompt.' },
+  { id: 'GER-03', cat: 'GER', tipo: 'manual', resp: 'QA',
+    titulo: 'Geração com chunk informal (FAQ) — sinalizar fonte não normativa',
+    desc: 'Chunk FAQ-38 (carga danificada) + \'O que fazer com carga danificada?\'',
+    saida: 'Resposta usa FAQ-38 mas sinaliza explicitamente que a fonte é informal e recomenda confirmação.',
+    obs_base: 'Assistente não deve tratar FAQ com mesma autoridade que POL/PROC. Controlado pelo system prompt.' },
+  { id: 'GER-04', cat: 'GER', tipo: 'manual', resp: 'QA',
+    titulo: 'Geração sem chunks relevantes — declarar ausência',
+    desc: 'Nenhum chunk relevante + \'Qual o percentual de multa por atraso de entrega?\'',
+    saida: 'Resposta declara explicitamente que não encontrou informação. Sem invenção de percentual ou fonte inexistente.',
+    obs_base: 'Guardrail 3: quando não encontrar resposta, dizer explicitamente.' },
+  { id: 'GER-05', cat: 'GER', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Consistência de resposta — mesma pergunta, múltiplas execuções',
+    desc: '\'Qual o SLA do cliente Gold para chamados gerais?\' — executar 10 vezes com mesmos chunks.',
+    saida: 'Em todas as execuções: 2h úteis resposta, 24h resolução, fonte SLA-2024. Variação apenas no texto, não nos valores.',
+    obs_base: 'Temperature baixa (≤0.2) reduz variação. Registrar % de execuções corretas como métrica de qualidade.' },
+  // CONTEXTO
+  { id: 'CTX-01', cat: 'CTX', tipo: 'auto', resp: 'Dev',
+    titulo: 'Orçamento de contexto — dentro da janela do modelo',
+    desc: 'Pergunta longa (500 tokens) + 5 chunks máximos (512 tokens cada) + system prompt (300 tokens).',
+    saida: 'Total não excede a janela (8.192 tokens para gpt-35-turbo). Se exceder, priorizar chunks mais relevantes, não o prompt.',
+    obs_base: 'Context overflow (cenário C-F* do Ex. 1.1). Implementar contador de tokens antes do envio ao LLM. Logar truncamentos.' },
+  { id: 'CTX-02', cat: 'CTX', tipo: 'manual', resp: 'QA',
+    titulo: 'Context rot — qualidade de resposta em sessão longa no Teams',
+    desc: 'Sessão de 8 turnos: turno 1 estabelece cliente Gold; turno 8 pergunta \'Qual o prazo de resposta para esse chamado?\'',
+    saida: 'Resposta do turno 8 usa SLA Gold (2h úteis), não SLA genérico. Tier mantido ao longo de toda a sessão.',
+    obs_base: 'Cenário C-F1 do Ex. 1.1. Sessões longas no Teams são o canal de uso real.' },
+  { id: 'CTX-03', cat: 'CTX', tipo: 'manual', resp: 'QA',
+    titulo: 'Lost in the middle — chunks no meio do contexto não são ignorados',
+    desc: '5 chunks (POL-001-A início, B/C/D meio, FAQ-03 fim) + pergunta sobre processo completo de devolução.',
+    saida: 'Resposta menciona conteúdo de TODOS os chunks, incluindo POL-001-B (meio). Sem omissão de exceções.',
+    obs_base: 'Cenário C-F2 do Ex. 1.1. Testar com diferentes ordens de chunks para isolar efeito de posição.' },
+  { id: 'CTX-04', cat: 'CTX', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Chunk errado por ambiguidade — retriever traz versão desatualizada',
+    desc: 'Índice com ambas as versões da PROC-042. \'Qual o prazo adicional de entrega para frete especial?\'',
+    saida: 'Resposta usa +3 dias (v2). Se v1 (+2 dias) for recuperado junto, declarar conflito. Nunca responder apenas com v1.',
+    obs_base: 'Cenário C-F3 do Ex. 1.1. Logar qual chunk teve maior score para análise de retrieval.' },
+  // PONTA A PONTA
+  { id: 'E2E-01', cat: 'E2E', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Fluxo completo — pergunta com resposta correta documentada',
+    desc: '\'Qual o SLA do cliente Gold para incidentes críticos?\'',
+    saida: 'Resposta: 30 minutos resposta, 4 horas resolução, fonte SLA-2024 §2. Fluxo completo: pergunta → embedding → busca → chunks → LLM → resposta.',
+    obs_base: 'Teste de fumaça do pipeline completo. Deve ser o primeiro teste após qualquer deploy.' },
+  { id: 'E2E-02', cat: 'E2E', tipo: 'manual', resp: 'QA',
+    titulo: 'Fluxo completo — armadilha de alucinação (tier inexistente)',
+    desc: '\'Quais são os SLAs do cliente Platinum?\'',
+    saida: 'Resposta informa que tier Platinum não existe, lista tiers existentes (Gold, Silver, Standard), cita SLA-2024 §1. Sem invenção.',
+    obs_base: 'Teste de regressão crítico — falha indica alucinação ativa no pipeline.' },
+  { id: 'E2E-03', cat: 'E2E', tipo: 'manual', resp: 'QA',
+    titulo: 'Fluxo completo — pergunta sobre gap documental',
+    desc: '\'Qual o valor do frete para uma carga de 200kg para Curitiba?\'',
+    saida: 'Resposta declara que não encontrou documentação sobre frete padrão (<500kg) e orienta a consultar o Comercial.',
+    obs_base: 'Gap real documentado no Anexo A. Testa o guardrail 3 no fluxo completo.' },
+  { id: 'E2E-04', cat: 'E2E', tipo: 'manual', resp: 'QA',
+    titulo: 'Fluxo completo — pergunta multi-domínio com resposta composta',
+    desc: '\'Cliente Gold quer devolver carga perigosa. Qual o procedimento e qual o SLA?\'',
+    saida: '(1) Carga perigosa → ramal 4500; (2) Gold + carga perigosa → incidente crítico, SLA 30min/4h. Cita POL-001 §3.2, SLA-2024 §2 e §3.',
+    obs_base: 'Teste mais complexo do conjunto. Exige integração de informações de 3 documentos diferentes.' },
+  { id: 'E2E-05', cat: 'E2E', tipo: 'auto', resp: 'Dev + QA',
+    titulo: 'Fluxo completo — guardrail de idioma',
+    desc: '\'What is the return policy?\' (pergunta em inglês)',
+    saida: 'Resposta em português formal, conforme guardrail 4. Pode mencionar que a pergunta foi recebida em inglês.',
+    obs_base: 'Guardrail 4 explícito. System prompt deve forçar resposta em português independentemente do idioma.' },
+  // REGRESSÃO
+  { id: 'REG-01', cat: 'REG', tipo: 'ambos', resp: 'Dev + QA',
+    titulo: 'Regressão após mudança de prompt',
+    desc: 'Qualquer alteração no system prompt dispara a suite: E2E-01, E2E-02, E2E-05, GER-04, GER-05. QA executa E2E-03 e E2E-04 antes do deploy.',
+    saida: '100% dos testes automáticos passam. Testes manuais aprovados antes do deploy.',
+    obs_base: 'Mudanças de prompt são as mais frequentes. Suite deve rodar em < 5 minutos.' },
+  { id: 'REG-02', cat: 'REG', tipo: 'auto', resp: 'Dev',
+    titulo: 'Regressão após atualização de documento na base',
+    desc: 'Novo documento ingerido dispara: ING-03, ING-05, RET-01, RET-04, E2E-01.',
+    saida: 'Chunks do novo documento indexados. Perguntas retornam nova versão. Chunks antigos marcados como obsoletos.',
+    obs_base: 'Crítico: documentação atualizada mensalmente por 3 áreas. Deve rodar automaticamente toda vez que um doc é adicionado ao SharePoint.' },
+  { id: 'REG-03', cat: 'REG', tipo: 'manual', resp: 'QA',
+    titulo: 'Regressão para cenários de falha crítica do Exercício 1.1',
+    desc: 'Executar perguntas dos cenários C-A3, C-D2, C-G2 do Exercício 1.1 mensalmente.',
+    saida: 'C-A3: prazo de devolução sem distinção por tier. C-D2: desconto de volume com limiar 8 (não 10). C-G2: carga perigosa NÃO pode ser devolvida.',
+    obs_base: 'Liga Ex. 1.1 ao Ex. 1.3. Os cenários de falha identificados viram testes de regressão permanentes.' },
+];
+
+// State
+let data = {};
+let currentTab = 'all';
+let filterStatus = 'all';
+let filterResultado = 'all';
+let searchText = '';
+
+function loadData() {
+  try {
+    const stored = localStorage.getItem('novatech_rag_tracker');
+    if (stored) data = JSON.parse(stored);
+  } catch(e) {}
+  // Init missing
+  TESTS_BASE.forEach(t => {
+    if (!data[t.id]) {
+      data[t.id] = { status: 'afazer', data_exec: '', resultado: '', obs: '' };
+    }
+  });
+}
+
+function saveData() {
+  localStorage.setItem('novatech_rag_tracker', JSON.stringify(data));
+  const now = new Date();
+  document.getElementById('lastSaved').textContent = 'Salvo às ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+}
+
+function getStatusClass(s) {
+  return { afazer:'s-afazer', andamento:'s-andamento', concluido:'s-concluido', bloqueado:'s-bloqueado' }[s] || 's-afazer';
+}
+function getStatusLabel(s) {
+  return { afazer:'A fazer', andamento:'Em andamento', concluido:'Concluído', bloqueado:'Bloqueado' }[s] || 'A fazer';
+}
+function getResLabel(r) {
+  return { pass:'Pass', fail:'Fail', parcial:'Parcial', '':'-' }[r] || '-';
+}
+function getResClass(r) {
+  return { pass:'r-pass', fail:'r-fail', parcial:'r-parcial', '':'r-na' }[r] || 'r-na';
+}
+function getTipoLabel(t) {
+  return { auto:'Automático', manual:'Manual', ambos:'Auto+Manual' }[t] || t;
+}
+function getTipoClass(t) {
+  return { auto:'t-auto', manual:'t-manual', ambos:'t-ambos' }[t] || '';
+}
+
+function computeStats(tests) {
+  const s = { total: tests.length, afazer: 0, andamento: 0, concluido: 0, bloqueado: 0 };
+  tests.forEach(t => { const d = data[t.id]; s[d.status] = (s[d.status] || 0) + 1; });
+  return s;
+}
+
+function renderSummaryBar() {
+  const s = computeStats(TESTS_BASE);
+  const pct = Math.round((s.concluido / s.total) * 100);
+  document.getElementById('summaryBar').innerHTML = `
+    <div class="stat-card stat-total"><div class="num">${s.total}</div><div class="label">Total de testes</div></div>
+    <div class="stat-card stat-afazer"><div class="num">${s.afazer}</div><div class="label">A fazer</div></div>
+    <div class="stat-card stat-andamento"><div class="num">${s.andamento}</div><div class="label">Em andamento</div></div>
+    <div class="stat-card stat-concluido"><div class="num">${s.concluido}</div><div class="label">Concluídos</div></div>
+    <div class="stat-card stat-bloqueado"><div class="num">${s.bloqueado}</div><div class="label">Bloqueados</div></div>
+    <div class="stat-card" style="flex:1;min-width:200px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--text-muted)">Progresso geral</span>
+        <span style="font-size:12px;font-weight:700;color:var(--green)">${pct}%</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+  `;
+}
+
+function renderTabs() {
+  const allCats = Object.entries(CATEGORIES);
+  let html = `<div class="tab ${currentTab==='all'?'active':''}" onclick="setTab('all')">Todos <span class="tab-badge">${TESTS_BASE.length}</span></div>`;
+  html += `<div class="tab ${currentTab==='summary'?'active':''}" onclick="setTab('summary')">📊 Resumo por categoria</div>`;
+  allCats.forEach(([k,v]) => {
+    const count = TESTS_BASE.filter(t=>t.cat===k).length;
+    html += `<div class="tab ${currentTab===k?'active':''}" onclick="setTab('${k}')">${v.label} <span class="tab-badge">${count}</span></div>`;
+  });
+  document.getElementById('tabsBar').innerHTML = html;
+}
+
+function setTab(t) { currentTab = t; renderAll(); }
+
+function renderAll() {
+  renderSummaryBar();
+  renderTabs();
+  const content = document.getElementById('mainContent');
+  if (currentTab === 'summary') { content.innerHTML = renderCatSummary(); return; }
+  content.innerHTML = renderFilters() + renderTestsTable();
+}
+
+function renderCatSummary() {
+  let rows = '';
+  Object.entries(CATEGORIES).forEach(([k,v]) => {
+    const tests = TESTS_BASE.filter(t => t.cat === k);
+    const s = computeStats(tests);
+    const pct = Math.round((s.concluido / s.total) * 100);
+    const passCount = tests.filter(t => data[t.id].resultado === 'pass').length;
+    const failCount = tests.filter(t => data[t.id].resultado === 'fail').length;
+    const parcialCount = tests.filter(t => data[t.id].resultado === 'parcial').length;
+    rows += `<tr>
+      <td><span class="id-badge ${v.color}">${k}</span></td>
+      <td><strong>${v.label}</strong></td>
+      <td style="text-align:center">${s.total}</td>
+      <td style="text-align:center;color:var(--text-muted)">${s.afazer}</td>
+      <td style="text-align:center;color:#f59e0b">${s.andamento}</td>
+      <td style="text-align:center;color:#22c55e">${s.concluido}</td>
+      <td style="text-align:center;color:#ef4444">${s.bloqueado}</td>
+      <td style="text-align:center"><span class="resultado-badge r-pass">${passCount}</span></td>
+      <td style="text-align:center"><span class="resultado-badge r-fail">${failCount}</span></td>
+      <td style="text-align:center"><span class="resultado-badge r-parcial">${parcialCount}</span></td>
+      <td style="min-width:120px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="progress-wrap" style="flex:1"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <span style="font-size:11px;color:var(--green);font-weight:700">${pct}%</span>
+        </div>
+      </td>
+      <td style="font-size:11px;color:var(--text-muted)">${v.resp}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${v.quando}</td>
+    </tr>`;
+  });
+  // Totals
+  const s = computeStats(TESTS_BASE);
+  const passT = TESTS_BASE.filter(t => data[t.id].resultado === 'pass').length;
+  const failT = TESTS_BASE.filter(t => data[t.id].resultado === 'fail').length;
+  const parcT = TESTS_BASE.filter(t => data[t.id].resultado === 'parcial').length;
+  const pctT = Math.round((s.concluido/s.total)*100);
+  rows += `<tr style="font-weight:700;border-top:2px solid var(--border)">
+    <td colspan="2" style="color:var(--accent)">TOTAL</td>
+    <td style="text-align:center;color:var(--accent)">${s.total}</td>
+    <td style="text-align:center;color:var(--text-muted)">${s.afazer}</td>
+    <td style="text-align:center;color:#f59e0b">${s.andamento}</td>
+    <td style="text-align:center;color:#22c55e">${s.concluido}</td>
+    <td style="text-align:center;color:#ef4444">${s.bloqueado}</td>
+    <td style="text-align:center"><span class="resultado-badge r-pass">${passT}</span></td>
+    <td style="text-align:center"><span class="resultado-badge r-fail">${failT}</span></td>
+    <td style="text-align:center"><span class="resultado-badge r-parcial">${parcT}</span></td>
+    <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-wrap" style="flex:1"><div class="progress-fill" style="width:${pctT}%"></div></div><span style="font-size:11px;color:var(--green);font-weight:700">${pctT}%</span></div></td>
+    <td colspan="2"></td>
+  </tr>`;
+
+  return `<div class="cat-summary">
+    <table>
+      <thead><tr>
+        <th>Cat</th><th>Categoria</th><th style="text-align:center">Total</th>
+        <th style="text-align:center">A fazer</th><th style="text-align:center">Andamento</th>
+        <th style="text-align:center">Concluído</th><th style="text-align:center">Bloqueado</th>
+        <th style="text-align:center">Pass</th><th style="text-align:center">Fail</th><th style="text-align:center">Parcial</th>
+        <th>Progresso</th><th>Responsável</th><th>Quando executar</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderFilters() {
+  return `<div class="filter-bar">
+    <input class="search-input" type="text" placeholder="🔍 Buscar por ID ou descrição..." value="${searchText}" oninput="searchText=this.value;renderTestsTable(true)">
+    <label>Status:</label>
+    <select onchange="filterStatus=this.value;renderTestsTable(true)" style="width:auto">
+      <option value="all" ${filterStatus==='all'?'selected':''}>Todos</option>
+      <option value="afazer" ${filterStatus==='afazer'?'selected':''}>A fazer</option>
+      <option value="andamento" ${filterStatus==='andamento'?'selected':''}>Em andamento</option>
+      <option value="concluido" ${filterStatus==='concluido'?'selected':''}>Concluído</option>
+      <option value="bloqueado" ${filterStatus==='bloqueado'?'selected':''}>Bloqueado</option>
+    </select>
+    <label>Resultado:</label>
+    <select onchange="filterResultado=this.value;renderTestsTable(true)" style="width:auto">
+      <option value="all" ${filterResultado==='all'?'selected':''}>Todos</option>
+      <option value="pass" ${filterResultado==='pass'?'selected':''}>Pass</option>
+      <option value="fail" ${filterResultado==='fail'?'selected':''}>Fail</option>
+      <option value="parcial" ${filterResultado==='parcial'?'selected':''}>Parcial</option>
+      <option value="" ${ filterResultado===''?'selected':''}>Sem resultado</option>
+    </select>
+    <button class="btn btn-outline" style="padding:5px 10px" onclick="filterStatus='all';filterResultado='all';searchText='';renderAll()">Limpar filtros</button>
+  </div>`;
+}
+
+function renderTestsTable(partial) {
+  let tests = TESTS_BASE;
+  if (currentTab !== 'all' && currentTab !== 'summary') tests = tests.filter(t => t.cat === currentTab);
+  if (filterStatus !== 'all') tests = tests.filter(t => data[t.id].status === filterStatus);
+  if (filterResultado !== 'all') tests = tests.filter(t => data[t.id].resultado === filterResultado);
+  if (searchText) {
+    const q = searchText.toLowerCase();
+    tests = tests.filter(t => t.id.toLowerCase().includes(q) || t.titulo.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q));
+  }
+
+  if (tests.length === 0) {
+    const wrap = `<div class="tests-table-wrap"><div class="empty-msg">Nenhum teste encontrado com os filtros atuais.</div></div>`;
+    if (partial) { document.getElementById('tests-table-container').innerHTML = wrap; return; }
+    return wrap;
+  }
+
+  let rows = '';
+  let lastCat = '';
+  tests.forEach(t => {
+    const d = data[t.id];
+    const cat = CATEGORIES[t.cat];
+    if (currentTab === 'all' && t.cat !== lastCat) {
+      lastCat = t.cat;
+      rows += `<tr class="section-divider"><td colspan="9">▶ ${cat.label.toUpperCase()}</td></tr>`;
+    }
+    const detailId = `detail_${t.id.replace('-','_')}`;
+    rows += `<tr>
+      <td><button class="expand-btn" onclick="toggleDetail('${detailId}')">▸</button></td>
+      <td><span class="id-badge ${cat.color}">${t.id}</span></td>
+      <td class="desc-cell">
+        <div class="title">${t.titulo}</div>
+        <div class="sub">${t.desc.length > 80 ? t.desc.substring(0,80)+'…' : t.desc}</div>
+      </td>
+      <td><span class="tipo-badge ${getTipoClass(t.tipo)}">${getTipoLabel(t.tipo)}</span></td>
+      <td class="resp-text">${t.resp}</td>
+      <td>
+        <select onchange="updateField('${t.id}','status',this.value)" style="min-width:130px">
+          <option value="afazer" ${d.status==='afazer'?'selected':''}>A fazer</option>
+          <option value="andamento" ${d.status==='andamento'?'selected':''}>Em andamento</option>
+          <option value="concluido" ${d.status==='concluido'?'selected':''}>Concluído</option>
+          <option value="bloqueado" ${d.status==='bloqueado'?'selected':''}>Bloqueado</option>
+        </select>
+      </td>
+      <td><input type="date" value="${d.data_exec}" onchange="updateField('${t.id}','data_exec',this.value)" style="width:130px"></td>
+      <td>
+        <select onchange="updateField('${t.id}','resultado',this.value)" style="min-width:100px">
+          <option value="" ${d.resultado===''?'selected':''}>—</option>
+          <option value="pass" ${d.resultado==='pass'?'selected':''}>✅ Pass</option>
+          <option value="fail" ${d.resultado==='fail'?'selected':''}>❌ Fail</option>
+          <option value="parcial" ${d.resultado==='parcial'?'selected':''}>⚠️ Parcial</option>
+        </select>
+      </td>
+      <td><input type="text" placeholder="Observações…" value="${escHtml(d.obs)}" onchange="updateField('${t.id}','obs',this.value)" style="min-width:160px"></td>
+    </tr>
+    <tr class="detail-row" id="${detailId}">
+      <td colspan="9" style="padding:0 10px 10px 40px">
+        <div class="detail-content">
+          <div class="field-label">Descrição completa</div>
+          <p>${escHtml(t.desc)}</p>
+          <div class="field-label">Saída esperada</div>
+          <p>${escHtml(t.saida)}</p>
+          <div class="field-label">Riscos / Observações do plano</div>
+          <p>${escHtml(t.obs_base)}</p>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  const table = `<div id="tests-table-container"><div class="tests-table-wrap">
+    <table class="tests">
+      <thead><tr>
+        <th style="width:30px"></th>
+        <th>ID</th>
+        <th>Descrição</th>
+        <th>Tipo</th>
+        <th>Responsável</th>
+        <th>Status</th>
+        <th>Data execução</th>
+        <th>Resultado</th>
+        <th>Observações</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div></div>`;
+
+  if (partial) { document.getElementById('tests-table-container').outerHTML = table; return; }
+  return table;
+}
+
+function escHtml(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleDetail(id) {
+  const row = document.getElementById(id);
+  const btn = row.previousElementSibling.querySelector('.expand-btn');
+  if (row.classList.contains('open')) { row.classList.remove('open'); btn.textContent='▸'; }
+  else { row.classList.add('open'); btn.textContent='▾'; }
+}
+
+function updateField(id, field, value) {
+  if (!data[id]) data[id] = { status:'afazer', data_exec:'', resultado:'', obs:'' };
+  data[id][field] = value;
+  saveData();
+  renderSummaryBar();
+}
+
+function exportCSV() {
+  const cols = ['ID','Categoria','Título','Tipo','Responsável','Status','Data Execução','Resultado','Observações'];
+  const rows = TESTS_BASE.map(t => {
+    const d = data[t.id];
+    return [t.id, CATEGORIES[t.cat].label, t.titulo, getTipoLabel(t.tipo), t.resp,
+            getStatusLabel(d.status), d.data_exec, getResLabel(d.resultado), d.obs]
+      .map(v => `"${(v||'').replace(/"/g,'""')}"`)
+      .join(',');
+  });
+  const csv = [cols.join(','), ...rows].join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tracker-testes-rag-novatech.csv';
+  a.click();
+}
+
+// Init
+loadData();
+renderAll();
+</script>
+</body>
+</html>
